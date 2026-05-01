@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVARA - Voice Controlled Game</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: monospace;
+            color: #eee;
+        }
+        
+        .pixel-font {
+            font-family: 'Press Start 2P', monospace;
+        }
+        
+        canvas {
+            border: 2px solid #16213e;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            background: #0f3460;
+            display: none;
+        }
+        
+        canvas.active {
+            display: block;
+        }
+        
+        .ui-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+        }
+        
+        .home-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .home-content {
+            text-align: center;
+            max-width: 800px;
+            width: 800px;
+            padding: 60px 40px;
+            border: 3px solid #16213e;
+            background: rgba(26, 26, 46, 0.8);
+            border-radius: 8px;
+        }
+        
+        .home-title {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 64px;
+            color: #e94560;
+            margin-bottom: 30px;
+            text-shadow: 4px 4px 0px #16213e;
+            letter-spacing: 8px;
+        }
+        
+        .home-description {
+            font-family: monospace;
+            font-size: 16px;
+            color: #eee;
+            margin-bottom: 50px;
+            line-height: 1.6;
+        }
+        
+        .home-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .game-container {
+            display: none;
+            position: relative;
+        }
+        
+        .game-container.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .pixel-button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-family: monospace;
+            font-size: 16px;
+            cursor: pointer;
+            image-rendering: pixelated;
+            border: 2px solid #16213e;
+            margin: 5px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .pixel-button:hover {
+            background: #f39c12;
+        }
+        
+        .score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #eee;
+            z-index: 5;
+            display: none;
+        }
+        
+        .score.active {
+            display: block;
+        }
+        
+        .pitch-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 20px;
+            height: 100px;
+            border: 2px solid #16213e;
+            background: #1a1a2e;
+            z-index: 5;
+        }
+        
+        .pitch-bar {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: #e94560;
+            transition: height 0.1s;
+        }
+        
+        .pitch-label {
+            position: absolute;
+            top: 20px;
+            right: 50px;
+            color: #e94560;
+            font-size: 12px;
+            font-family: monospace;
+            z-index: 5;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+        
+        .volume-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 30px;
+            height: 150px;
+            border: 2px solid #16213e;
+            background: #1a1a2e;
+            z-index: 5;
+            display: none;
+        }
+        
+        .volume-indicator.active {
+            display: block;
+        }
+        
+        .volume-bar {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: #f39c12;
+            transition: height 0.1s;
+        }
+        
+        .volume-threshold-line {
+            position: absolute;
+            left: -5px;
+            width: calc(100% + 10px);
+            height: 3px;
+            background: #e94560;
+            border: 1px solid #fff;
+            z-index: 6;
+            transition: bottom 0.2s;
+        }
+        
+        .volume-label {
+            position: absolute;
+            top: 20px;
+            right: 60px;
+            color: #f39c12;
+            font-size: 12px;
+            font-family: monospace;
+            z-index: 5;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            display: none;
+        }
+        
+        .volume-label.active {
+            display: block;
+        }
+        
+        .waiting-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 46, 0.9);
+            padding: 20px;
+            border: 2px solid #e94560;
+            color: #eee;
+            font-size: 18px;
+            text-align: center;
+            z-index: 15;
+        }
+        
+        .settings-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 46, 0.98);
+            padding: 25px;
+            border: 2px solid #16213e;
+            color: #eee;
+            font-size: 14px;
+            z-index: 200;
+            display: none;
+            width: 800px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .setting-description {
+            font-size: 11px;
+            color: #888;
+            margin-top: 3px;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+        
+        .settings-row {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 20px 0;
+        }
+        
+        .settings-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .settings-slider {
+            width: 120px;
+            height: 20px;
+            background: #16213e;
+            border: 1px solid #e94560;
+            outline: none;
+            pointer-events: none; /* Disable direct interaction */
+            cursor: default;
+        }
+        
+        .slider-arrow {
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #e94560, #c73650);
+            border: 2px solid #f39c12;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .slider-arrow:hover {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            border-color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+        
+        .slider-arrow:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .speed-row {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border: 1px solid #16213e;
+            background: rgba(22, 33, 62, 0.3);
+            border-radius: 4px;
+            min-width: 120px;
+        }
+        
+        .radio-option:hover {
+            background: rgba(233, 69, 96, 0.2);
+        }
+        
+        .radio-option input[type="radio"]:checked + label {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        
+        .theme-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 12px 16px;
+            border: 3px solid transparent;
+            border-radius: 4px;
+            min-width: 140px;
+            transition: all 0.2s;
+        }
+        
+        .theme-option:hover {
+            transform: scale(1.05);
+        }
+        
+        .theme-option input[type="radio"]:checked {
+            accent-color: #fff;
+        }
+        
+        .theme-option.theme-classic {
+            background: #0f3460;
+            border-color: #e94560;
+            color: #eee;
+        }
+        
+        .theme-option.theme-sunset {
+            background: #2d1b2e;
+            border-color: #f7931e;
+            color: #ffeaa7;
+        }
+        
+        .theme-option.theme-forest {
+            background: #1a3a2e;
+            border-color: #2ed573;
+            color: #dfe6e9;
+        }
+        
+        .theme-option.theme-midnight {
+            background: #1e1e2e;
+            border-color: #ff79c6;
+            color: #f8f8f2;
+        }
+        
+        .theme-option.theme-ocean {
+            background: #0a3d62;
+            border-color: #1abc9c;
+            color: #ecf0f1;
+        }
+        
+        .theme-option input[type="radio"]:checked + label {
+            font-weight: bold;
+        }
+        
+        .debug-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.9);
+            padding: 15px;
+            border: 1px solid #16213e;
+            color: #eee;
+            font-size: 12px;
+            z-index: 5;
+            font-family: monospace;
+            line-height: 1.4;
+            display: none;
+        }
+        
+        .debug-info.active {
+            display: block;
+        }
+        
+        .info-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 46, 0.98);
+            padding: 30px;
+            border: 3px solid #16213e;
+            color: #eee;
+            font-size: 14px;
+            z-index: 250;
+            display: none;
+            width: 600px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 8px;
+        }
+        
+        .info-panel ul {
+            padding-left: 20px;
+        }
+        
+        .info-panel li {
+            margin: 8px 0;
+        }
+        
+        .leaderboard-entry {
+            background: rgba(22, 33, 62, 0.5);
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #e94560;
+            border-radius: 4px;
+        }
+        
+        .leaderboard-entry.rank-1 {
+            border-left-color: #f39c12;
+            background: rgba(243, 156, 18, 0.1);
+        }
+        
+        .leaderboard-entry.rank-2 {
+            border-left-color: #95a5a6;
+            background: rgba(149, 165, 166, 0.1);
+        }
+        
+        .leaderboard-entry.rank-3 {
+            border-left-color: #cd7f32;
+            background: rgba(205, 127, 50, 0.1);
+        }
+        
+        .leaderboard-rank {
+            font-size: 24px;
+            font-weight: bold;
+            display: inline-block;
+            width: 40px;
+        }
+        
+        .leaderboard-details {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        
+        .empty-leaderboard {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- Home Screen -->
+    <div class="home-screen" id="homeScreen">
+        <div class="home-content">
+            <h1 class="home-title">SVARA</h1>
+            <p class="home-description">
+                Flappy Bird made better, a voice-controlled game.<br>
+                Make a sound to lift the orb, stay quiet to let it fall!
+            </p>
+            <div class="home-buttons">
+                <button class="pixel-button" id="playNowButton">Play Now</button>
+                <button class="pixel-button" id="homeSettingsButton">Settings</button>
+                <button class="pixel-button" id="howToPlayButton">How to Play</button>
+                <button class="pixel-button" id="leaderboardButton">Leaderboard</button>
+            </div>
+            <p style="font-size: 12px; margin-top: 30px; opacity: 0.7;">Microphone permission required</p>
+        </div>
+    </div>
+    
+    <!-- Game Container -->
+    <div class="game-container" id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="score" id="scoreDisplay">Score: 0</div>
+        
+        <div class="volume-indicator">
+            <div class="volume-bar" id="volumeBar"></div>
+            <div class="volume-threshold-line" id="volumeThresholdLine"></div>
+        </div>
+        <div class="volume-label">VOLUME</div>
+    
+        <div class="ui-overlay" id="startScreen">
+            <h2 style="color: #e94560; font-size: 36px; margin-bottom: 20px;">Ready to Play?</h2>
+            <p style="font-size: 16px; margin-bottom: 30px;">Press Start to begin!</p>
+            <button class="pixel-button" id="startButton">Start Game</button>
+            <button class="pixel-button" id="showSettingsButton">Settings</button>
+        </div>
+    
+        <div class="ui-overlay" id="gameOverScreen" style="display: none;">
+            <h2 style="color: #e94560; font-size: 36px;">Game Over</h2>
+            <p id="finalScore" style="font-size: 24px; margin: 20px 0;"></p>
+            <button class="pixel-button" id="restartButton">Play Again</button>
+            <button class="pixel-button" id="gameOverSettingsButton">Settings</button>
+            <button class="pixel-button" id="backToHomeButton">Back to Home</button>
+        </div>
+        
+        <div class="waiting-message" id="waitingMessage" style="display: none;">
+            <p style="margin: 0 0 10px 0;">🎤 Start making sound to begin!</p>
+            <p style="margin: 0; font-size: 14px; opacity: 0.8;">Ball stays stable for 1 second, then falls without voice input</p>
+        </div>
+        
+        <div class="debug-info" id="debugInfo">
+            <div><strong>GAME STATUS:</strong></div>
+            <div>Volume: <span id="debugVolume">0</span></div>
+            <div>Voice Active: <span id="debugVoiceActive">No</span></div>
+            <div>State: <span id="debugState">start</span></div>
+            <div><strong>SETTINGS:</strong></div>
+            <div>Pipe Speed: <span id="debugSpeed">easy</span></div>
+            <div>Sensitivity: <span id="debugSensitivity">5</span></div>
+            <div>Vol Threshold: <span id="debugVolThreshold">1</span></div>
+            <div>Gravity: <span id="debugGravityStrength">5</span></div>
+        </div>
+    </div>
+    
+    <!-- Settings Panel (Global - accessible from all screens) -->
+    <div class="settings-panel" id="settingsPanel">
+        <h3 style="margin-top: 0; color: #e94560;">Game Settings</h3>
+        
+        <div class="settings-grid">
+            <!-- Left Column -->
+            <div class="settings-column">
+                <div>
+                    <label>Sensitivity:</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                        <button class="slider-arrow" onclick="adjustSlider('sensitivitySlider', -1)">◀</button>
+                        <input type="range" class="settings-slider" id="sensitivitySlider" min="0" max="10" step="1" value="5">
+                        <button class="slider-arrow" onclick="adjustSlider('sensitivitySlider', 1)">▶</button>
+                        <span id="sensitivityValue">5</span>
+                    </div>
+                    <div class="setting-description">How fast the ball rises when you make sound. Higher = faster rise.</div>
+                </div>
+                
+                <div>
+                    <label>Volume Threshold:</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                        <button class="slider-arrow" onclick="adjustSlider('volumeSlider', -1)">◀</button>
+                        <input type="range" class="settings-slider" id="volumeSlider" min="0" max="10" step="1" value="3">
+                        <button class="slider-arrow" onclick="adjustSlider('volumeSlider', 1)">▶</button>
+                        <span id="volumeValue">1</span>
+                    </div>
+                    <div class="setting-description">Minimum volume needed to detect your voice. Lower = more sensitive.</div>
+                </div>
+                
+                <div>
+                    <label>Gravity Strength:</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                        <button class="slider-arrow" onclick="adjustSlider('gravitySlider', -1)">◀</button>
+                        <input type="range" class="settings-slider" id="gravitySlider" min="-10" max="10" step="1" value="0">
+                        <button class="slider-arrow" onclick="adjustSlider('gravitySlider', 1)">▶</button>
+                        <span id="gravityValue">5</span>
+                    </div>
+                    <div class="setting-description">How fast the ball falls. Higher = heavier gravity, faster falling.</div>
+                </div>
+                
+                <div>
+                    <label style="font-weight: bold;">Ball Speed (Horizontal):</label>
+                    <div class="setting-description" style="margin-top: 5px;">How fast the ball moves towards the right.</div>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="speedVeryEasy" name="speed" value="very-easy">
+                            <label for="speedVeryEasy">Very Easy</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="speedEasy" name="speed" value="easy" checked>
+                            <label for="speedEasy">Easy</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="speedMedium" name="speed" value="medium">
+                            <label for="speedMedium">Medium</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="speedHard" name="speed" value="hard">
+                            <label for="speedHard">Hard</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="speedChild" name="speed" value="child">
+                            <label for="speedChild">Child Mode</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Child Mode Slider (only visible when Child Mode is selected) -->
+                    <div id="childModeSliderContainer" style="display: none; margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 4px;">
+                        <label>Child Mode Speed:</label>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                            <button class="slider-arrow" onclick="adjustSlider('childSpeedSlider', -1)">◀</button>
+                            <input type="range" class="settings-slider" id="childSpeedSlider" min="1" max="10" step="1" value="5">
+                            <button class="slider-arrow" onclick="adjustSlider('childSpeedSlider', 1)">▶</button>
+                            <span id="childSpeedValue">0.5</span>
+                        </div>
+                        <div class="setting-description">Adjust pipe speed from 0.1 (slowest) to 1.0 (fastest) for child mode.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column -->
+            <div class="settings-column">
+                <div>
+                    <label style="font-weight: bold;">Color Theme:</label>
+                    <div class="setting-description" style="margin-top: 5px;">Choose your visual style. Each button shows the theme preview.</div>
+                    <div class="radio-group">
+                        <div class="theme-option theme-classic">
+                            <input type="radio" id="themeClassic" name="theme" value="classic" checked>
+                            <label for="themeClassic">Classic Blue</label>
+                        </div>
+                        <div class="theme-option theme-sunset">
+                            <input type="radio" id="themeSunset" name="theme" value="sunset">
+                            <label for="themeSunset">Sunset Orange</label>
+                        </div>
+                        <div class="theme-option theme-forest">
+                            <input type="radio" id="themeForest" name="theme" value="forest">
+                            <label for="themeForest">Forest Green</label>
+                        </div>
+                        <div class="theme-option theme-midnight">
+                            <input type="radio" id="themeMidnight" name="theme" value="midnight">
+                            <label for="themeMidnight">Midnight Purple</label>
+                        </div>
+                        <div class="theme-option theme-ocean">
+                            <input type="radio" id="themeOcean" name="theme" value="ocean">
+                            <label for="themeOcean">Ocean Teal</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="settings-row" style="justify-content: center; margin-top: 20px;">
+            <button class="pixel-button" id="saveSettings">Save Settings</button>
+        </div>
+    </div>
+    
+    <!-- How to Play Panel -->
+    <div class="info-panel" id="howToPlayPanel">
+        <h3 style="margin-top: 0; color: #e94560;">How to Play SVARA</h3>
+        
+        <div style="text-align: left; line-height: 1.8;">
+            <p><strong>🎤 Voice Control:</strong></p>
+            <ul style="margin: 10px 0;">
+                <li>Make sound to lift the orb upward</li>
+                <li>Stay quiet to let the orb fall down</li>
+                <li>Control your voice volume to navigate through pipes</li>
+            </ul>
+            
+            <p><strong>🎯 Objective:</strong></p>
+            <ul style="margin: 10px 0;">
+                <li>Pass through as many pipes as possible</li>
+                <li>Avoid hitting pipes or boundaries</li>
+                <li>Score increases with each pipe passed</li>
+            </ul>
+            
+            <p><strong>⚙️ Settings:</strong></p>
+            <ul style="margin: 10px 0;">
+                <li><strong>Sensitivity:</strong> How fast the orb rises with sound</li>
+                <li><strong>Volume Threshold:</strong> Minimum volume to detect voice</li>
+                <li><strong>Gravity:</strong> How fast the orb falls</li>
+                <li><strong>Pipe Speed:</strong> How fast pipes move toward you</li>
+                <li><strong>Child Mode:</strong> Custom adjustable speed for kids</li>
+            </ul>
+            
+            <p><strong>💡 Tips:</strong></p>
+            <ul style="margin: 10px 0;">
+                <li>Start with Easy mode to practice</li>
+                <li>Adjust volume threshold if too sensitive/insensitive</li>
+                <li>Use Child Mode for learning or relaxed play</li>
+                <li>Try different themes for visual variety</li>
+            </ul>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="pixel-button" id="closeHowToPlay">Got It!</button>
+        </div>
+    </div>
+    
+    <!-- Leaderboard Panel -->
+    <div class="info-panel" id="leaderboardPanel">
+        <h3 style="margin-top: 0; color: #e94560;">🏆 Leaderboard - Top 10</h3>
+        
+        <div id="leaderboardContent" style="max-height: 400px; overflow-y: auto; margin: 20px 0;">
+            <!-- Leaderboard entries will be inserted here -->
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+            <button class="pixel-button" id="closeLeaderboard">Close</button>
+            <button class="pixel-button" id="clearLeaderboard" style="background: #c0392b;">Clear All</button>
+        </div>
+    </div>
+    
+    <!-- Name Entry Panel (shown when player makes leaderboard) -->
+    <div class="info-panel" id="nameEntryPanel" style="display: none;">
+        <h3 style="margin-top: 0; color: #e94560;">🎉 New High Score!</h3>
+        
+        <p style="font-size: 18px; margin: 20px 0;">You scored <strong id="newScoreDisplay">0</strong> points!</p>
+        <p style="margin-bottom: 20px;">Enter your name for the leaderboard:</p>
+        
+        <input type="text" id="playerNameInput" maxlength="20" placeholder="Your Name" 
+               style="width: 80%; padding: 10px; font-size: 16px; font-family: monospace; 
+                      border: 2px solid #e94560; background: #1a1a2e; color: #eee; 
+                      text-align: center; margin-bottom: 20px;">
+        
+        <div style="text-align: center;">
+            <button class="pixel-button" id="submitScore">Submit Score</button>
+            <button class="pixel-button" id="skipScore" style="background: #7f8c8d;">Skip</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state and configuration
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Disable image smoothing for pixel-perfect rendering
+        ctx.imageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.mozImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+        
+        // Game configuration
+        const CONFIG = {
+            // Physics
+            baseGravity: 0.098, // Earth's gravity scaled for game (9.8 / 100)
+            maxVelocity: 2.5,
+            pitchSensitivity: 0.08,
+            
+            // Orb properties
+            orbRadius: 12,
+            orbX: 150,
+            
+            // Pipe properties
+            pipeWidth: 60,
+            initialPipeGap: 250,
+            pipeSpeed: 2,
+            pipeSpacing: 300,
+            
+            // Difficulty scaling
+            difficultyIncrease: 0.001,
+            maxDifficulty: 2.0,
+            
+            // Audio - volume only
+            silenceThreshold: 0.02, // Volume threshold for detecting silence
+        };
+        
+        // Game state
+        let gameState = 'start'; // 'start', 'waiting', 'playing', 'gameOver'
+        let score = 0;
+        let difficulty = 1.0;
+        let gameStartTime = 0;
+        let hasStartedVocalizing = false;
+        let actualGameStartTime = 0; // When actual gameplay begins (after waiting)
+        
+        // Speed settings (radio buttons control PIPE/HORIZONTAL speed)
+        const PIPE_SPEED_LEVELS = {
+            'very-easy': 2,   // Very slow pipes
+            'easy': 4,        // Normal speed
+            'medium': 6,      // Faster pipes
+            'hard': 8,        // Fast pipes
+            'child': 0.5      // Child mode - will be overridden by slider
+        };
+        
+        let selectedPipeSpeed = 'easy';
+        let currentPipeSpeed = 'easy';
+        let childModeSpeed = 0.5; // Default child mode speed (0.1 to 1.0)
+        let gravityStrength = 5; // From gravity slider (0-10)
+        
+        // Theme colors
+        const THEMES = {
+            'classic': {
+                name: 'Classic Blue',
+                background: '#0f3460',
+                pipe: '#16213e',
+                orb: '#f39c12',
+                orbGlow: '#e94560',
+                accent: '#e94560',
+                text: '#eee'
+            },
+            'sunset': {
+                name: 'Sunset Orange',
+                background: '#2d1b2e',
+                pipe: '#5c3d5e',
+                orb: '#ff6b35',
+                orbGlow: '#f7931e',
+                accent: '#f7931e',
+                text: '#ffeaa7'
+            },
+            'forest': {
+                name: 'Forest Green',
+                background: '#1a3a2e',
+                pipe: '#2d5a4a',
+                orb: '#7bed9f',
+                orbGlow: '#2ed573',
+                accent: '#2ed573',
+                text: '#dfe6e9'
+            },
+            'midnight': {
+                name: 'Midnight Purple',
+                background: '#1e1e2e',
+                pipe: '#2e2e3e',
+                orb: '#bd93f9',
+                orbGlow: '#ff79c6',
+                accent: '#ff79c6',
+                text: '#f8f8f2'
+            },
+            'ocean': {
+                name: 'Ocean Teal',
+                background: '#0a3d62',
+                pipe: '#1e5f74',
+                orb: '#00d2d3',
+                orbGlow: '#1abc9c',
+                accent: '#1abc9c',
+                text: '#ecf0f1'
+            }
+        };
+        
+        let currentTheme = 'classic';
+        
+        // Orb state
+        let orb = {
+            x: CONFIG.orbX,
+            y: canvas.height / 2,
+            velocity: 0,
+            radius: CONFIG.orbRadius
+        };
+        
+        // Pipes array
+        let pipes = [];
+        
+        // Audio context and analysis
+        let audioContext;
+        let analyser;
+        let microphone;
+        let dataArray;
+        let currentVolume = 0;
+        
+        // UI elements
+        const homeScreen = document.getElementById('homeScreen');
+        const gameContainer = document.getElementById('gameContainer');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const waitingMessage = document.getElementById('waitingMessage');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const playNowButton = document.getElementById('playNowButton');
+        const homeSettingsButton = document.getElementById('homeSettingsButton');
+        const howToPlayButton = document.getElementById('howToPlayButton');
+        const leaderboardButton = document.getElementById('leaderboardButton');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const showSettingsButton = document.getElementById('showSettingsButton');
+        const saveSettings = document.getElementById('saveSettings');
+        const gameOverSettingsButton = document.getElementById('gameOverSettingsButton');
+        const backToHomeButton = document.getElementById('backToHomeButton');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const finalScore = document.getElementById('finalScore');
+        
+        // How to Play elements
+        const howToPlayPanel = document.getElementById('howToPlayPanel');
+        const closeHowToPlay = document.getElementById('closeHowToPlay');
+        
+        // Leaderboard elements
+        const leaderboardPanel = document.getElementById('leaderboardPanel');
+        const leaderboardContent = document.getElementById('leaderboardContent');
+        const closeLeaderboard = document.getElementById('closeLeaderboard');
+        const clearLeaderboard = document.getElementById('clearLeaderboard');
+        
+        // Name entry elements
+        const nameEntryPanel = document.getElementById('nameEntryPanel');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const newScoreDisplay = document.getElementById('newScoreDisplay');
+        const submitScore = document.getElementById('submitScore');
+        const skipScore = document.getElementById('skipScore');
+
+        const volumeBar = document.getElementById('volumeBar');
+        const volumeThresholdLine = document.getElementById('volumeThresholdLine');
+        const sensitivitySlider = document.getElementById('sensitivitySlider');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const gravitySlider = document.getElementById('gravitySlider');
+        const sensitivityValue = document.getElementById('sensitivityValue');
+        const volumeValue = document.getElementById('volumeValue');
+        const gravityValue = document.getElementById('gravityValue');
+        
+        // Child mode elements
+        const childModeSliderContainer = document.getElementById('childModeSliderContainer');
+        const childSpeedSlider = document.getElementById('childSpeedSlider');
+        const childSpeedValue = document.getElementById('childSpeedValue');
+        
+        // Debug elements
+        const debugInfo = document.getElementById('debugInfo');
+        const debugVolume = document.getElementById('debugVolume');
+
+        const debugVoiceActive = document.getElementById('debugVoiceActive');
+        const debugState = document.getElementById('debugState');
+        const debugSpeed = document.getElementById('debugSpeed');
+        const debugSensitivity = document.getElementById('debugSensitivity');
+        const debugVolThreshold = document.getElementById('debugVolThreshold');
+        const debugGravityStrength = document.getElementById('debugGravityStrength');
+        
+        // Speed radio buttons
+        const speedRadios = document.querySelectorAll('input[name="speed"]');
+        
+        // Theme radio buttons
+        const themeRadios = document.querySelectorAll('input[name="theme"]');
+        
+        // Leaderboard data structure
+        let leaderboard = [];
+        const MAX_LEADERBOARD_ENTRIES = 10;
+        
+        // Load leaderboard from localStorage
+        function loadLeaderboard() {
+            const saved = localStorage.getItem('svaraLeaderboard');
+            if (saved) {
+                try {
+                    leaderboard = JSON.parse(saved);
+                } catch (e) {
+                    leaderboard = [];
+                }
+            }
+        }
+        
+        // Save leaderboard to localStorage
+        function saveLeaderboard() {
+            localStorage.setItem('svaraLeaderboard', JSON.stringify(leaderboard));
+        }
+        
+        // Check if score makes the leaderboard
+        function isHighScore(score) {
+            if (leaderboard.length < MAX_LEADERBOARD_ENTRIES) return true;
+            return score > leaderboard[leaderboard.length - 1].score;
+        }
+        
+        // Add score to leaderboard
+        function addToLeaderboard(playerName, score, settings) {
+            const entry = {
+                name: playerName,
+                score: score,
+                settings: settings,
+                date: new Date().toISOString(),
+                timestamp: Date.now()
+            };
+            
+            leaderboard.push(entry);
+            leaderboard.sort((a, b) => b.score - a.score);
+            
+            // Keep only top entries
+            if (leaderboard.length > MAX_LEADERBOARD_ENTRIES) {
+                leaderboard = leaderboard.slice(0, MAX_LEADERBOARD_ENTRIES);
+            }
+            
+            saveLeaderboard();
+        }
+        
+        // Display leaderboard
+        function displayLeaderboard() {
+            if (leaderboard.length === 0) {
+                leaderboardContent.innerHTML = '<div class="empty-leaderboard">No scores yet. Be the first to play!</div>';
+                return;
+            }
+            
+            let html = '';
+            leaderboard.forEach((entry, index) => {
+                const rank = index + 1;
+                const rankClass = rank <= 3 ? `rank-${rank}` : '';
+                const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+                const date = new Date(entry.date).toLocaleDateString();
+                
+                // Format settings display
+                let speedDisplay = entry.settings.pipeSpeed;
+                if (entry.settings.pipeSpeed === 'child') {
+                    speedDisplay = `Child Mode (${entry.settings.childSpeed})`;
+                }
+                
+                html += `
+                    <div class="leaderboard-entry ${rankClass}">
+                        <div>
+                            <span class="leaderboard-rank">${medal || '#' + rank}</span>
+                            <strong style="font-size: 18px;">${entry.name}</strong>
+                            <span style="float: right; font-size: 20px; color: #f39c12;">${entry.score} pts</span>
+                        </div>
+                        <div class="leaderboard-details">
+                            <strong>Settings:</strong> 
+                            Sensitivity: ${entry.settings.sensitivity} | 
+                            Vol Threshold: ${entry.settings.volumeThreshold} | 
+                            Gravity: ${entry.settings.gravity} | 
+                            Speed: ${speedDisplay} | 
+                            Theme: ${entry.settings.theme}
+                            <br>
+                            <strong>Date:</strong> ${date}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            leaderboardContent.innerHTML = html;
+        }
+        
+        // Show how to play panel
+        function showHowToPlay() {
+            howToPlayPanel.style.display = 'block';
+        }
+        
+        // Hide how to play panel
+        function hideHowToPlay() {
+            howToPlayPanel.style.display = 'none';
+        }
+        
+        // Show leaderboard panel
+        function showLeaderboard() {
+            displayLeaderboard();
+            leaderboardPanel.style.display = 'block';
+        }
+        
+        // Hide leaderboard panel
+        function hideLeaderboard() {
+            leaderboardPanel.style.display = 'none';
+        }
+        
+        // Clear leaderboard
+        function clearLeaderboardData() {
+            if (confirm('Are you sure you want to clear all leaderboard data? This cannot be undone.')) {
+                leaderboard = [];
+                saveLeaderboard();
+                displayLeaderboard();
+            }
+        }
+        
+        // Show name entry panel
+        function showNameEntry() {
+            newScoreDisplay.textContent = score;
+            playerNameInput.value = '';
+            nameEntryPanel.style.display = 'block';
+            playerNameInput.focus();
+        }
+        
+        // Hide name entry panel
+        function hideNameEntry() {
+            nameEntryPanel.style.display = 'none';
+        }
+        
+        // Submit score to leaderboard
+        function submitScoreToLeaderboard() {
+            const playerName = playerNameInput.value.trim() || 'Anonymous';
+            
+            const settings = {
+                sensitivity: parseInt(sensitivitySlider.value),
+                volumeThreshold: parseInt(volumeSlider.value),
+                gravity: parseInt(gravitySlider.value),
+                pipeSpeed: selectedPipeSpeed,
+                childSpeed: selectedPipeSpeed === 'child' ? childModeSpeed.toFixed(1) : null,
+                theme: currentTheme
+            };
+            
+            addToLeaderboard(playerName, score, settings);
+            hideNameEntry();
+        }
+        
+        // Pitch detection removed - using volume only
+        
+        // Initialize audio context and microphone
+        async function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    } 
+                });
+                
+                microphone = audioContext.createMediaStreamSource(stream);
+                analyser = audioContext.createAnalyser();
+                
+                // Configure analyser for pitch detection
+                analyser.fftSize = 4096; // Higher resolution for better pitch detection
+                analyser.smoothingTimeConstant = 0.1; // Less smoothing for more responsive detection
+                
+                microphone.connect(analyser);
+                
+                // Create data arrays
+                dataArray = new Float32Array(analyser.fftSize);
+                
+                return true;
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                alert('Microphone access is required to play SVARA!');
+                return false;
+            }
+        }
+        
+        // Analyze audio input - volume only
+        function analyzeAudio() {
+            if (!analyser) return;
+            
+            // Get time domain data for volume calculation
+            analyser.getFloatTimeDomainData(dataArray);
+            
+            // Calculate volume (RMS) with aggressive scaling
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i] * dataArray[i];
+            }
+            const rawVolume = Math.sqrt(sum / dataArray.length);
+            
+            // Very aggressive scaling for maximum sensitivity
+            currentVolume = Math.min(1, rawVolume * 100);
+            
+            // Update volume indicator only
+            const volumePercent = Math.min(100, currentVolume * 100);
+            volumeBar.style.height = volumePercent + '%';
+            
+            // Volume threshold slider is 0-10, convert to percentage for the red line
+            const sliderValue = parseInt(volumeSlider.value);
+            const thresholdPercent = sliderValue * 10; // 0-10 slider → 0-100% position
+            volumeThresholdLine.style.bottom = thresholdPercent + '%';
+            
+            // The actual threshold value should match the visual red line position
+            // If red line is at 30% height, threshold should be 0.30 (since volume is 0-1)
+            const currentThreshold = sliderValue / 10; // 0-10 → 0-1.0
+            
+            // Update debug info with all settings
+            debugVolume.textContent = currentVolume.toFixed(4);
+            debugState.textContent = gameState;
+            debugSpeed.textContent = currentPipeSpeed;
+            debugSensitivity.textContent = sensitivitySlider.value;
+            debugVolThreshold.textContent = volumeSlider.value + ' (' + currentThreshold.toFixed(2) + ')';
+            debugGravityStrength.textContent = gravitySlider.value;
+            
+            // Show voice detection status (only based on volume threshold)
+            const voiceDetected = currentVolume > currentThreshold;
+            debugVoiceActive.textContent = voiceDetected ? 'Yes' : 'No';
+        }
+        
+        // Initialize pipes
+        function initPipes() {
+            pipes = [];
+            for (let i = 0; i < 3; i++) {
+                createPipe(canvas.width + i * CONFIG.pipeSpacing);
+            }
+        }
+        
+        // Create a new pipe
+        function createPipe(x) {
+            const gapSize = CONFIG.initialPipeGap - (difficulty - 1) * 30;
+            const minGap = 120; // Minimum gap size
+            const actualGap = Math.max(minGap, gapSize);
+            
+            const gapY = 100 + Math.random() * (canvas.height - 200 - actualGap);
+            
+            pipes.push({
+                x: x,
+                topHeight: gapY,
+                bottomY: gapY + actualGap,
+                bottomHeight: canvas.height - (gapY + actualGap),
+                passed: false
+            });
+        }
+        
+        // Update orb physics
+        function updateOrb() {
+            if (gameState === 'waiting') {
+                // In waiting state, check if player has started vocalizing
+                const currentThreshold = parseInt(volumeSlider.value) / 10; // 0-10 → 0-1.0
+                if (currentVolume > currentThreshold) {
+                    hasStartedVocalizing = true;
+                    gameState = 'playing';
+                    actualGameStartTime = Date.now();
+                    waitingMessage.style.display = 'none';
+                }
+                // During waiting, keep orb stable for 1 second only
+                orb.velocity *= 0.9; // Damping to keep it relatively stable
+                orb.y += orb.velocity;
+                return;
+            }
+            
+            if (gameState !== 'playing') return;
+            
+            // Convert slider values to usable ranges
+            const currentThreshold = parseInt(volumeSlider.value) / 10; // 0-10 → 0-1.0 (matches red line position)
+            const currentSensitivity = parseInt(sensitivitySlider.value) / 10; // 0-10 → 0-1.0
+            const gravitySliderValue = parseInt(gravitySlider.value); // -10 to +10
+            
+            // Gravity slider controls VERTICAL speed (ball falling/rising)
+            let currentGravity = 0.15 + (gravitySliderValue * 0.02); // Base gravity + adjustment
+            
+            // If child mode is active, adjust gravity based on child mode speed
+            if (selectedPipeSpeed === 'child') {
+                // Scale gravity proportionally to child mode speed
+                // Lower speed = lower gravity (easier for kids)
+                currentGravity = currentGravity * childModeSpeed;
+            }
+            
+            // Always apply gravity first (ball naturally falls down)
+            const fallGravity = currentGravity * difficulty;
+            orb.velocity += fallGravity;
+            
+            // Only apply upward force if volume exceeds threshold (red line)
+            if (currentVolume > currentThreshold) {
+                // Voice detected = apply upward force (ball goes up)
+                // Increased multiplier from 2 to 3 for more dramatic effect
+                const upwardForce = currentSensitivity * difficulty * 3;
+                orb.velocity -= upwardForce; // Negative velocity = upward movement
+            }
+            // If volume is below threshold, ball just falls (gravity already applied)
+            
+            // Limit velocity based on gravity setting
+            const maxVel = CONFIG.maxVelocity + (gravitySliderValue * 0.2);
+            orb.velocity = Math.max(-maxVel, Math.min(maxVel, orb.velocity));
+            
+            // Update position
+            orb.y += orb.velocity;
+            
+            // Check boundaries
+            if (orb.y - orb.radius <= 0 || orb.y + orb.radius >= canvas.height) {
+                gameOver();
+            }
+        }
+        
+        // Update pipes
+        function updatePipes() {
+            if (gameState !== 'playing') return;
+            
+            // Determine current pipe speed based on time elapsed (grace period logic)
+            const timeElapsed = (Date.now() - actualGameStartTime) / 1000;
+            if (timeElapsed < 1) {
+                // First 1 second: always use selected pipe speed (no grace period for speed)
+                currentPipeSpeed = selectedPipeSpeed;
+            } else {
+                // After 1 second: use selected pipe speed
+                currentPipeSpeed = selectedPipeSpeed;
+            }
+            
+            // Pipe speed controlled by radio buttons (horizontal movement)
+            let pipeSpeedMultiplier = PIPE_SPEED_LEVELS[currentPipeSpeed];
+            
+            // If child mode is selected, use the slider value instead
+            if (currentPipeSpeed === 'child') {
+                pipeSpeedMultiplier = childModeSpeed;
+            }
+            
+            const pipeSpeed = CONFIG.pipeSpeed * difficulty * pipeSpeedMultiplier;
+            
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                const pipe = pipes[i];
+                pipe.x -= pipeSpeed;
+                
+                // Check if orb passed pipe
+                if (!pipe.passed && pipe.x + CONFIG.pipeWidth < orb.x) {
+                    pipe.passed = true;
+                    score++;
+                    scoreDisplay.textContent = `Score: ${score}`;
+                    
+                    // Increase difficulty gradually
+                    difficulty = Math.min(CONFIG.maxDifficulty, 1 + score * CONFIG.difficultyIncrease);
+                }
+                
+                // Remove pipes that are off-screen
+                if (pipe.x + CONFIG.pipeWidth < 0) {
+                    pipes.splice(i, 1);
+                }
+                
+                // Check collision
+                if (checkCollision(orb, pipe)) {
+                    gameOver();
+                }
+            }
+            
+            // Add new pipes
+            const lastPipe = pipes[pipes.length - 1];
+            if (lastPipe && lastPipe.x < canvas.width - CONFIG.pipeSpacing) {
+                createPipe(canvas.width);
+            }
+        }
+        
+        // Check collision between orb and pipe - SIMPLE and EXACT
+        function checkCollision(orb, pipe) {
+            // Orb bounds (the visible orange ball only, not the glow)
+            const orbLeft = orb.x - orb.radius;
+            const orbRight = orb.x + orb.radius;
+            const orbTop = orb.y - orb.radius;
+            const orbBottom = orb.y + orb.radius;
+            
+            // Pipe bounds (exactly as rendered)
+            const pipeLeft = pipe.x;
+            const pipeRight = pipe.x + CONFIG.pipeWidth;
+            const topPipeBottom = pipe.topHeight;  // Top pipe ends here
+            const bottomPipeTop = pipe.bottomY;     // Bottom pipe starts here
+            
+            // Check if orb is horizontally overlapping with pipe
+            if (orbRight > pipeLeft && orbLeft < pipeRight) {
+                // Check if orb hits top pipe
+                if (orbTop < topPipeBottom) {
+                    return true;
+                }
+                // Check if orb hits bottom pipe
+                if (orbBottom > bottomPipeTop) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // Render orb with pixel-perfect positioning
+        function renderOrb() {
+            const theme = THEMES[currentTheme];
+            const x = Math.floor(orb.x);
+            const y = Math.floor(orb.y);
+            
+            // Orb glow effect with theme colors
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, orb.radius + 4);
+            gradient.addColorStop(0, theme.orb);
+            gradient.addColorStop(0.7, theme.orbGlow);
+            gradient.addColorStop(1, theme.orbGlow + '00'); // Transparent
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, orb.radius + 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Main orb body
+            ctx.fillStyle = theme.orb;
+            ctx.beginPath();
+            ctx.arc(x, y, orb.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Orb highlight
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(x - 3, y - 3, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Render pipes with pixelated style - simple solid pillars
+        function renderPipes() {
+            const theme = THEMES[currentTheme];
+            
+            pipes.forEach(pipe => {
+                const x = Math.floor(pipe.x);
+                
+                // Top pipe - solid from top to topHeight
+                ctx.fillStyle = theme.pipe;
+                ctx.fillRect(x, 0, CONFIG.pipeWidth, pipe.topHeight);
+                
+                // Bottom pipe - solid from bottomY to canvas bottom
+                ctx.fillStyle = theme.pipe;
+                ctx.fillRect(x, pipe.bottomY, CONFIG.pipeWidth, canvas.height - pipe.bottomY);
+            });
+        }
+        
+        // Apply theme colors
+        function updateTheme() {
+            const theme = THEMES[currentTheme];
+            
+            // Update page background color
+            document.body.style.background = theme.background;
+            
+            // Update home screen background
+            if (homeScreen) {
+                homeScreen.style.background = theme.background;
+            }
+            
+            // Update canvas background
+            canvas.style.background = theme.background;
+            
+            // Update UI text colors
+            document.body.style.color = theme.text;
+            scoreDisplay.style.color = theme.text;
+            
+            // Update home title color
+            const homeTitle = document.querySelector('.home-title');
+            if (homeTitle) {
+                homeTitle.style.color = theme.accent;
+                homeTitle.style.textShadow = `4px 4px 0px ${theme.pipe}`;
+            }
+            
+            // Update all buttons
+            const buttons = document.querySelectorAll('.pixel-button');
+            buttons.forEach(btn => {
+                btn.style.background = theme.accent;
+            });
+            
+            // Update volume/pitch labels
+            const volumeLabel = document.querySelector('.volume-label');
+            if (volumeLabel) volumeLabel.style.color = theme.orb;
+            
+            // Update settings panel
+            settingsPanel.style.borderColor = theme.accent;
+            settingsPanel.style.background = theme.background + 'f0'; // Add transparency
+            
+            // Update debug info
+            debugInfo.style.color = theme.text;
+            debugInfo.style.background = theme.background + 'e0';
+        }
+        
+        // Render background
+        function renderBackground() {
+            const theme = THEMES[currentTheme];
+            
+            // Clear canvas with theme background
+            ctx.fillStyle = theme.background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Simple parallax background pattern
+            // Use theme pipe color with transparency for background pattern
+            ctx.fillStyle = theme.pipe + '80'; // Add 50% transparency
+            const offset = (Date.now() * 0.02) % 40;
+            for (let x = -offset; x < canvas.width; x += 40) {
+                for (let y = 0; y < canvas.height; y += 40) {
+                    ctx.fillRect(Math.floor(x), Math.floor(y), 2, 2);
+                }
+            }
+        }
+        
+        // Main game loop
+        function gameLoop() {
+            // Only run game logic if we're in the game container
+            if (gameContainer.classList.contains('active')) {
+                analyzeAudio();
+                
+                if (gameState === 'waiting' || gameState === 'playing') {
+                    updateOrb();
+                }
+                
+                if (gameState === 'playing') {
+                    updatePipes();
+                }
+                
+                // Render everything
+                renderBackground();
+                renderPipes();
+                renderOrb();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Show game ready screen
+        function showGameReadyScreen() {
+            homeScreen.style.display = 'none';
+            gameContainer.classList.add('active');
+            canvas.classList.add('active');
+            scoreDisplay.classList.add('active');
+            document.querySelector('.volume-indicator').classList.add('active');
+            document.querySelector('.volume-label').classList.add('active');
+            debugInfo.classList.add('active');
+            startScreen.style.display = 'block';
+        }
+        
+        // Back to home
+        function backToHome() {
+            homeScreen.style.display = 'flex';
+            gameContainer.classList.remove('active');
+            canvas.classList.remove('active');
+            scoreDisplay.classList.remove('active');
+            document.querySelector('.volume-indicator').classList.remove('active');
+            document.querySelector('.volume-label').classList.remove('active');
+            debugInfo.classList.remove('active');
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            waitingMessage.style.display = 'none';
+            settingsPanel.style.display = 'none';
+            gameState = 'start';
+        }
+        
+        // Start game
+        async function startGame() {
+            if (gameState === 'start') {
+                const audioInitialized = await initAudio();
+                if (!audioInitialized) return;
+            }
+            
+            // Reset game state
+            gameState = 'waiting';
+            score = 0;
+            difficulty = 1.0;
+            hasStartedVocalizing = false;
+            gameStartTime = Date.now();
+            actualGameStartTime = 0;
+            currentPipeSpeed = 'easy';
+            
+            // Reset orb
+            orb.x = CONFIG.orbX;
+            orb.y = canvas.height / 2;
+            orb.velocity = 0;
+            
+            // Initialize pipes
+            initPipes();
+            
+            // Update UI
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            waitingMessage.style.display = 'block';
+            scoreDisplay.textContent = 'Score: 0';
+        }
+        
+        // Game over
+        function gameOver() {
+            gameState = 'gameOver';
+            finalScore.textContent = `Final Score: ${score}`;
+            gameOverScreen.style.display = 'block';
+            waitingMessage.style.display = 'none';
+            
+            // Check if score makes leaderboard
+            if (isHighScore(score)) {
+                setTimeout(() => {
+                    showNameEntry();
+                }, 500);
+            }
+        }
+        
+        // Settings controls
+        function updateSensitivity() {
+            const value = parseInt(sensitivitySlider.value);
+            sensitivityValue.textContent = value;
+        }
+        
+        function updateVolumeThreshold() {
+            const value = parseInt(volumeSlider.value);
+            volumeValue.textContent = value;
+            // Update the red threshold line position in real-time
+            const thresholdPercent = value * 10; // 0-10 slider → 0-100% position
+            volumeThresholdLine.style.bottom = thresholdPercent + '%';
+        }
+        
+        function updateGravityStrength() {
+            const value = parseInt(gravitySlider.value);
+            gravityValue.textContent = value;
+            gravityStrength = value;
+        }
+        
+        function updatePipeSpeedLevel() {
+            const selectedRadio = document.querySelector('input[name="speed"]:checked');
+            if (selectedRadio) {
+                selectedPipeSpeed = selectedRadio.value;
+                
+                // Show/hide child mode slider based on selection
+                if (selectedPipeSpeed === 'child') {
+                    childModeSliderContainer.style.display = 'block';
+                } else {
+                    childModeSliderContainer.style.display = 'none';
+                }
+            }
+        }
+        
+        function updateChildSpeed() {
+            const value = parseInt(childSpeedSlider.value);
+            // Map 1-10 to 0.1-1.0
+            childModeSpeed = value / 10;
+            childSpeedValue.textContent = childModeSpeed.toFixed(1);
+        }
+        
+        // Arrow button handler for all sliders
+        function adjustSlider(sliderId, direction) {
+            const slider = document.getElementById(sliderId);
+            const currentValue = parseInt(slider.value);
+            const min = parseInt(slider.min);
+            const max = parseInt(slider.max);
+            const step = parseInt(slider.step);
+            
+            // Calculate new value
+            const newValue = Math.max(min, Math.min(max, currentValue + (direction * step)));
+            
+            // Update slider value
+            slider.value = newValue;
+            
+            // Trigger the appropriate update function
+            switch(sliderId) {
+                case 'sensitivitySlider':
+                    updateSensitivity();
+                    break;
+                case 'volumeSlider':
+                    updateVolumeThreshold();
+                    break;
+                case 'gravitySlider':
+                    updateGravityStrength();
+                    break;
+                case 'childSpeedSlider':
+                    updateChildSpeed();
+                    break;
+            }
+        }
+        
+        function updateThemeSelection() {
+            const selectedRadio = document.querySelector('input[name="theme"]:checked');
+            if (selectedRadio) {
+                currentTheme = selectedRadio.value;
+                updateTheme();
+            }
+        }
+        
+        function toggleSettingsPanel() {
+            if (settingsPanel.style.display === 'none' || settingsPanel.style.display === '') {
+                settingsPanel.style.display = 'block';
+            } else {
+                settingsPanel.style.display = 'none';
+            }
+        }
+        
+        function saveSettingsAndClose() {
+            settingsPanel.style.display = 'none';
+        }
+        
+        // Event listeners
+        console.log('Setting up event listeners...');
+        console.log('playNowButton:', playNowButton);
+        console.log('homeSettingsButton:', homeSettingsButton);
+        
+        if (playNowButton) {
+            playNowButton.addEventListener('click', function() {
+                console.log('Play Now clicked!');
+                showGameReadyScreen();
+            });
+        }
+        
+        if (homeSettingsButton) {
+            homeSettingsButton.addEventListener('click', function() {
+                console.log('Home Settings clicked!');
+                toggleSettingsPanel();
+            });
+        }
+        
+        howToPlayButton.addEventListener('click', showHowToPlay);
+        closeHowToPlay.addEventListener('click', hideHowToPlay);
+        
+        leaderboardButton.addEventListener('click', showLeaderboard);
+        closeLeaderboard.addEventListener('click', hideLeaderboard);
+        clearLeaderboard.addEventListener('click', clearLeaderboardData);
+        
+        submitScore.addEventListener('click', submitScoreToLeaderboard);
+        skipScore.addEventListener('click', hideNameEntry);
+        
+        // Allow Enter key to submit name
+        playerNameInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitScoreToLeaderboard();
+            }
+        });
+        
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', startGame);
+        showSettingsButton.addEventListener('click', toggleSettingsPanel);
+        saveSettings.addEventListener('click', saveSettingsAndClose);
+        backToHomeButton.addEventListener('click', backToHome);
+        
+        sensitivitySlider.addEventListener('input', updateSensitivity);
+        volumeSlider.addEventListener('input', updateVolumeThreshold);
+        gravitySlider.addEventListener('input', updateGravityStrength);
+        childSpeedSlider.addEventListener('input', updateChildSpeed);
+        
+        // Add pipe speed radio button listeners
+        speedRadios.forEach(radio => {
+            radio.addEventListener('change', updatePipeSpeedLevel);
+        });
+        
+        // Add theme radio button listeners
+        themeRadios.forEach(radio => {
+            radio.addEventListener('change', updateThemeSelection);
+        });
+        
+        // Game over settings button
+        gameOverSettingsButton.addEventListener('click', toggleSettingsPanel);
+        
+        // Initialize settings display
+        updateSensitivity();
+        updateVolumeThreshold();
+        updateGravityStrength();
+        updatePipeSpeedLevel();
+        updateChildSpeed();
+        updateTheme(); // Initialize theme colors
+        
+        // Load leaderboard on startup
+        loadLeaderboard();
+        
+        // Start the game loop
+        gameLoop();
+    </script>
+</body>
+</html>
